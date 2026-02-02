@@ -83,6 +83,13 @@
 | `아침 루틴` | 뉴스 브리핑 + 액션 확인 | `/routines/daily.md` |
 | `저녁 루틴` | 학습 정리 + 복습 체크 | `/routines/daily.md` |
 
+### TTS (음성 브리핑)
+| 명령어 | 기능 | 참조 파일 |
+|--------|------|-----------|
+| `뉴스 읽어줘` | 브리핑을 음성 MP3로 변환 | `/config/tts.md` |
+| `브리핑 재생` | 생성된 MP3 파일 경로 안내 | `/briefings/audio/` |
+| `음성 변경: [sunhi/injoon/hyunsu]` | TTS 음성 변경 | `/config/tts.md` |
+
 ---
 
 ## 뉴스 브리핑 생성 규칙
@@ -160,9 +167,12 @@
 ```
 /home/user/claude/
 ├── CLAUDE.md                 # 이 파일
+├── scripts/                  # Python 스크립트
+│   └── tts_generator.py      # TTS 변환기
 ├── user/                     # 사용자 정보
 ├── knowledge/                # 지식 관리
 ├── briefings/                # 브리핑 저장
+│   └── audio/                # TTS MP3 파일
 ├── config/                   # 설정
 ├── goals/                    # 목표 관리
 ├── actions/                  # 액션 아이템
