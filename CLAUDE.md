@@ -90,6 +90,15 @@
 | `브리핑 재생` | 생성된 MP3 파일 경로 안내 | `/briefings/audio/` |
 | `음성 변경: [sunhi/injoon/hyunsu]` | TTS 음성 변경 | `/config/tts.md` |
 
+### 텔레그램 봇 (핸드폰 청취)
+| 명령어 | 기능 | 참조 파일 |
+|--------|------|-----------|
+| `/start` | 봇 시작 | `/config/telegram-bot.md` |
+| `/news` | 텍스트 브리핑 | - |
+| `/audio` | MP3 음성 브리핑 전송 | - |
+| `/voice [sunhi/injoon/hyunsu]` | 음성 변경 | - |
+| `/subscribe` | 매일 아침 자동 브리핑 구독 | - |
+
 ---
 
 ## 뉴스 브리핑 생성 규칙
