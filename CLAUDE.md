@@ -90,14 +90,15 @@
 | `브리핑 재생` | 생성된 MP3 파일 경로 안내 | `/briefings/audio/` |
 | `음성 변경: [sunhi/injoon/hyunsu]` | TTS 음성 변경 | `/config/tts.md` |
 
-### 텔레그램 봇 (핸드폰 청취)
-| 명령어 | 기능 | 참조 파일 |
+### LINE 봇 (핸드폰 청취)
+| 메시지 | 기능 | 참조 파일 |
 |--------|------|-----------|
-| `/start` | 봇 시작 | `/config/telegram-bot.md` |
-| `/news` | 텍스트 브리핑 | - |
-| `/audio` | MP3 음성 브리핑 전송 | - |
-| `/voice [sunhi/injoon/hyunsu]` | 음성 변경 | - |
-| `/subscribe` | 매일 아침 자동 브리핑 구독 | - |
+| `뉴스` | 텍스트 브리핑 | `/config/line-bot.md` |
+| `음성` | m4a 음성 브리핑 전송 | - |
+| `음성변경 [sunhi/injoon/hyunsu]` | 음성 변경 | - |
+| `구독` | 매일 아침 자동 브리핑 | - |
+| `구독취소` | 구독 해제 | - |
+| `도움말` | 명령어 안내 | - |
 
 ---
 
@@ -177,7 +178,8 @@
 /home/user/claude/
 ├── CLAUDE.md                 # 이 파일
 ├── scripts/                  # Python 스크립트
-│   └── tts_generator.py      # TTS 변환기
+│   ├── tts_generator.py      # TTS 변환기 (MP3/m4a)
+│   └── line_bot.py           # LINE 봇
 ├── user/                     # 사용자 정보
 ├── knowledge/                # 지식 관리
 ├── briefings/                # 브리핑 저장

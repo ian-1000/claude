@@ -9,8 +9,16 @@ import edge_tts
 import re
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
+
+# m4a 변환을 위한 pydub (선택적)
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
 
 # 기본 설정
 DEFAULT_VOICE = "ko-KR-SunHiNeural"  # 여성 뉴스 앵커 스타일
@@ -217,6 +225,72 @@ async def generate_briefing_audio(
     await generate_tts(str(script), str(output_path), voice=voice)
 
     return str(output_path)
+
+
+async def generate_briefing_audio_m4a(
+    briefing_text: str,
+    output_filename: str = None,
+    voice: str = DEFAULT_VOICE,
+    user_name: str = "이한솔"
+) -> str:
+    """
+    브리핑 텍스트를 m4a 음성 파일로 변환 (LINE용)
+    MP3 생성 후 m4a로 변환
+    """
+    if not PYDUB_AVAILABLE:
+        raise ImportError("pydub가 설치되지 않았습니다. pip install pydub를 실행하세요.")
+
+    # 출력 디렉토리 생성
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 파일명 생성
+    if output_filename is None:
+        today = datetime.now().strftime("%Y-%m-%d")
+        output_filename = f"briefing_{today}.m4a"
+
+    # .m4a 확장자 확인
+    if not output_filename.endswith('.m4a'):
+        output_filename = output_filename.rsplit('.', 1)[0] + '.m4a'
+
+    output_path = OUTPUT_DIR / output_filename
+
+    # 뉴스 스크립트로 변환
+    script = convert_to_news_script(briefing_text, user_name)
+
+    # 임시 MP3 파일 생성
+    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_file:
+        tmp_mp3_path = tmp_file.name
+
+    try:
+        # TTS 생성 (MP3)
+        await generate_tts(str(script), tmp_mp3_path, voice=voice)
+
+        # MP3 → m4a 변환
+        audio = AudioSegment.from_mp3(tmp_mp3_path)
+        audio.export(str(output_path), format="ipod")  # ipod = m4a/aac
+
+        return str(output_path)
+
+    finally:
+        # 임시 파일 삭제
+        if os.path.exists(tmp_mp3_path):
+            os.unlink(tmp_mp3_path)
+
+
+def convert_mp3_to_m4a(mp3_path: str, m4a_path: str = None) -> str:
+    """
+    MP3 파일을 m4a로 변환
+    """
+    if not PYDUB_AVAILABLE:
+        raise ImportError("pydub가 설치되지 않았습니다. pip install pydub를 실행하세요.")
+
+    if m4a_path is None:
+        m4a_path = mp3_path.rsplit('.', 1)[0] + '.m4a'
+
+    audio = AudioSegment.from_mp3(mp3_path)
+    audio.export(m4a_path, format="ipod")
+
+    return m4a_path
 
 
 def list_voices():
