@@ -20,16 +20,16 @@ try:
 except ImportError:
     PYDUB_AVAILABLE = False
 
-# 기본 설정
-DEFAULT_VOICE = "ko-KR-SunHiNeural"  # 여성 뉴스 앵커 스타일
-DEFAULT_RATE = "+0%"  # 속도 조절 (-50% ~ +100%)
-DEFAULT_VOLUME = "+0%"  # 볼륨 조절
-DEFAULT_PITCH = "+0Hz"  # 음높이 조절
+# 기본 설정 - 자연스러운 여성 앵커 스타일
+DEFAULT_VOICE = "ko-KR-SunHiNeural"  # 여성, 친근하고 밝은 톤
+DEFAULT_RATE = "+15%"  # 속도 조절 (뉴스 앵커처럼 명확하고 빠르게)
+DEFAULT_VOLUME = "+5%"  # 볼륨 약간 높게
+DEFAULT_PITCH = "+10Hz"  # 음높이 높게 (귀여운 여성 음성)
 
 # 사용 가능한 한국어 음성
 VOICES = {
-    "sunhi": "ko-KR-SunHiNeural",      # 여성, 차분한 뉴스 앵커
-    "injoon": "ko-KR-InJoonNeural",    # 남성, 차분한 뉴스 앵커
+    "sunhi": "ko-KR-SunHiNeural",      # 여성, 자연스럽고 친근한 톤 (기본값)
+    "injoon": "ko-KR-InJoonNeural",    # 남성, 차분한 앵커
     "hyunsu": "ko-KR-HyunsuNeural",    # 남성, 밝은 톤
 }
 

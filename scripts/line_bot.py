@@ -35,6 +35,9 @@ from tts_generator import (
     OUTPUT_DIR,
 )
 
+# 뉴스 브리핑 엔진 import
+from news_briefing import generate_news_briefing
+
 # Flask 앱 설정
 app = Flask(__name__)
 
@@ -63,6 +66,38 @@ subscribed_users = set()
 # 기본 설정
 DEFAULT_VOICE = "sunhi"
 DEFAULT_USER_NAME = "이한솔"
+
+# LINE 메시지 최대 길이
+LINE_MAX_MESSAGE_LENGTH = 4500
+
+
+def split_message(text: str, max_length: int = LINE_MAX_MESSAGE_LENGTH) -> list:
+    """긴 메시지를 여러 개로 분할 (LINE 5000자 제한 대응)"""
+    if len(text) <= max_length:
+        return [text]
+
+    messages = []
+    # 섹션 구분자로 분할
+    separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    sections = text.split(separator)
+
+    current_msg = ""
+    for i, section in enumerate(sections):
+        test_addition = separator + section if i > 0 else section
+
+        if len(current_msg) + len(test_addition) > max_length:
+            if current_msg.strip():
+                messages.append(current_msg.strip())
+            current_msg = section.strip()
+        else:
+            if i > 0 and current_msg:
+                current_msg += separator
+            current_msg += section
+
+    if current_msg.strip():
+        messages.append(current_msg.strip())
+
+    return messages if messages else [text]
 
 
 def get_user_setting(user_id: str, key: str, default=None):
@@ -136,9 +171,21 @@ def handle_message(event):
 
         # 명령어 처리
         if text in ["뉴스", "브리핑", "news"]:
-            reply = handle_news_command(user_id)
+            # 상세 브리핑 생성 후 분할 전송
+            briefing = handle_news_command(user_id)
+            messages = split_message(briefing)
+
+            # 여러 메시지로 분할 전송
+            text_messages = [TextMessage(text=msg) for msg in messages[:5]]  # LINE 최대 5개
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=text_messages
+                )
+            )
+            return  # 직접 응답 처리 완료
         elif text in ["음성", "오디오", "audio", "voice"]:
-            reply = handle_audio_command(user_id, line_bot_api, event.reply_token)
+            handle_audio_command(user_id, line_bot_api, event.reply_token)
             return  # 오디오는 별도 처리
         elif text.startswith("음성변경") or text.startswith("voice"):
             parts = text.split()
@@ -168,20 +215,23 @@ def handle_message(event):
 
 
 def handle_news_command(user_id: str) -> str:
-    """뉴스 브리핑 텍스트 반환"""
-    briefing = generate_sample_briefing()
+    """뉴스 브리핑 텍스트 반환 - 상세 개인화 브리핑"""
+    # 상세 뉴스 브리핑 생성
+    briefing = generate_news_briefing()
     return briefing
 
 
 def handle_audio_command(user_id: str, line_bot_api: MessagingApi, reply_token: str):
-    """음성 브리핑 생성 및 전송"""
+    """음성 브리핑 생성 및 전송 - 뉴스 앵커 스타일"""
     try:
+        # 먼저 "생성 중" 메시지는 보내지 않음 (LINE은 reply_token을 한 번만 사용 가능)
+
         # 사용자 설정
         voice_name = get_user_setting(user_id, "voice", DEFAULT_VOICE)
         voice = VOICES.get(voice_name, VOICES[DEFAULT_VOICE])
 
-        # 브리핑 생성
-        briefing = generate_sample_briefing()
+        # 상세 뉴스 브리핑 생성
+        briefing = generate_news_briefing()
 
         # 오디오 생성 (m4a)
         today = datetime.now().strftime("%Y-%m-%d")
@@ -190,29 +240,30 @@ def handle_audio_command(user_id: str, line_bot_api: MessagingApi, reply_token: 
         # 비동기 실행
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        output_path = loop.run_until_complete(
-            generate_briefing_audio_m4a(
-                briefing,
-                output_filename=filename,
-                voice=voice,
-                user_name=DEFAULT_USER_NAME
+        try:
+            output_path = loop.run_until_complete(
+                generate_briefing_audio_m4a(
+                    briefing,
+                    output_filename=filename,
+                    voice=voice,
+                    user_name=DEFAULT_USER_NAME
+                )
             )
-        )
-        loop.close()
+        finally:
+            loop.close()
 
         # 오디오 URL 생성
         audio_url = f"{WEBHOOK_BASE_URL}/audio/{filename}"
 
         # 오디오 메시지 전송
-        # LINE 오디오 메시지는 duration(ms)이 필요
-        # 대략 3분 = 180000ms로 설정 (실제는 파일 분석 필요)
-        duration = 180000
+        # 뉴스 브리핑은 길 수 있으므로 5분으로 설정
+        duration = 300000
 
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=reply_token,
                 messages=[
-                    TextMessage(text="🎧 음성 브리핑을 생성했습니다."),
+                    TextMessage(text="🎧 음성 브리핑을 생성했습니다.\n뉴스 앵커 스타일로 읽어드립니다."),
                     AudioMessage(
                         original_content_url=audio_url,
                         duration=duration
@@ -221,11 +272,29 @@ def handle_audio_command(user_id: str, line_bot_api: MessagingApi, reply_token: 
             )
         )
 
-    except Exception as e:
+    except ImportError as e:
+        # pydub 미설치
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=reply_token,
-                messages=[TextMessage(text=f"오디오 생성 중 오류가 발생했습니다: {str(e)}")]
+                messages=[TextMessage(text=f"❌ 음성 기능에 필요한 패키지가 없습니다.\n\n오류: {str(e)}\n\n해결: pip install pydub 실행 필요")]
+            )
+        )
+    except ConnectionError as e:
+        # 네트워크 오류
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[TextMessage(text=f"❌ 음성 생성 서버에 연결할 수 없습니다.\n\n회사 네트워크에서 Microsoft TTS 서버가 차단되어 있을 수 있습니다.\n\n집에서 다시 시도해주세요.")]
+            )
+        )
+    except Exception as e:
+        error_type = type(e).__name__
+        error_msg = str(e)
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[TextMessage(text=f"❌ 오디오 생성 중 오류가 발생했습니다.\n\n오류 유형: {error_type}\n오류 내용: {error_msg[:200]}")]
             )
         )
 
@@ -236,13 +305,13 @@ def handle_voice_change(user_id: str, voice: str) -> str:
     if voice in VOICES:
         set_user_setting(user_id, "voice", voice)
         voice_names = {
-            "sunhi": "선희 (여성, 차분)",
-            "injoon": "인준 (남성, 차분)",
-            "hyunsu": "현수 (남성, 밝음)"
+            "sunhi": "선희 (여성, 밝고 친근한 톤) ⭐추천",
+            "injoon": "인준 (남성, 차분한 앵커)",
+            "hyunsu": "현수 (남성, 밝은 톤)"
         }
-        return f"✅ 음성이 {voice_names.get(voice, voice)}(으)로 변경되었습니다."
+        return f"✅ 음성이 {voice_names.get(voice, voice)}(으)로 변경되었습니다.\n\n💡 선희 음성이 가장 자연스럽습니다."
     else:
-        return f"❌ 알 수 없는 음성입니다.\n사용 가능: sunhi, injoon, hyunsu"
+        return f"❌ 알 수 없는 음성입니다.\n\n사용 가능:\n• sunhi - 선희 (여성, 추천)\n• injoon - 인준 (남성)\n• hyunsu - 현수 (남성)"
 
 
 def handle_subscribe(user_id: str) -> str:
